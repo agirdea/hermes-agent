@@ -1747,6 +1747,10 @@ class GatewayInboundMixin:
         follow-up paths so attribution, image enrichment, STT, document notes, reply context and
         @ references behave the same. Side effect: buffers per-session native image paths when the
         model supports native vision; the caller consumes that buffer at ``run_conversation``."""
+        from gateway.process_completion import process_completion_is_consumed
+        if process_completion_is_consumed(event):
+            logger.debug("Skipping queued process completion already read via wait/log")
+            return None
         rehome_inbound_media(event)  # before any consumer (vision, STT, document notes) reads media_urls
         _pending_stt_prepared = hasattr(event, "_gateway_pending_stt_text")
         message_text = (event._gateway_pending_stt_text if _pending_stt_prepared else event.text) or ""

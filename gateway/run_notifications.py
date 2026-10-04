@@ -1335,6 +1335,13 @@ class GatewayNotificationsMixin:
                 text=synth_text, message_type=MessageType.TEXT, source=source, internal=True,
                 metadata=metadata,
             )
+            if evt.get("type") == "completion":
+                synth_event._process_completion_snapshot = (
+                    synth_text,
+                    evt.get("_process_completion_identities") or (
+                        (evt.get("session_id"), evt.get("started_at")),
+                    ),
+                )
             logger.info(
                 "Watch pattern notification — injecting for %s chat=%s thread=%s",
                 platform_name, source.chat_id, source.thread_id,
@@ -1676,7 +1683,13 @@ class GatewayNotificationsMixin:
             # sibling is never discarded with it.
             delivered = None
             for _text, candidate_evt, _future in entries:
-                delivered = await self._deliver_completion_notification(synth_text, candidate_evt)
+                delivery_evt = {
+                    **candidate_evt,
+                    "_process_completion_identities": tuple(
+                        (evt.get("session_id"), evt.get("started_at")) for _text, evt, _future in entries
+                    ),
+                }
+                delivered = await self._deliver_completion_notification(synth_text, delivery_evt)
                 if delivered is not None:
                     break
             if delivered is True and len(entries) > 1:
